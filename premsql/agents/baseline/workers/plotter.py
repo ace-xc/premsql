@@ -8,6 +8,7 @@ from premsql.agents.base import ChartPlotWorkerBase, ChartPlotWorkerOutput
 from premsql.agents.baseline.prompts import BASELINE_CHART_WORKER_PROMPT_TEMPLATE
 from premsql.agents.tools.plot.base import BasePlotTool
 from premsql.agents.utils import convert_df_to_dict
+from premsql.security import ensure_expected_keys_only, parse_structured_output
 
 logger = setup_console_logger("[PLOT-WORKER]")
 
@@ -39,8 +40,12 @@ class BaseLinePlotWorker(ChartPlotWorkerBase):
                 max_new_tokens=max_new_tokens,
                 postprocess=False,
             )
-            to_plot = to_plot.replace("null", "None")
-            plot_config = eval(to_plot)
+            plot_config = ensure_expected_keys_only(
+                parse_structured_output(
+                    to_plot, expected_keys={"x", "y", "plot_type"}
+                ),
+                expected_keys={"x", "y", "plot_type"},
+            )
             fig = self.plot_tool.run(data=input_dataframe, plot_config=plot_config)
             logger.info(f"Plot config: {plot_config}")
 

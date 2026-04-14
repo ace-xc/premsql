@@ -21,6 +21,7 @@ from premsql.agents.base import AgentOutput
 from premsql.playground import InferenceServerAPIClient
 from premsql.security import (
     SecurityValidationError,
+    get_api_token,
     mask_db_connection_uri,
     redact_agent_output_payload,
     safe_error_message,
@@ -36,7 +37,7 @@ logger = setup_console_logger("[SESSION-MANAGER]")
 
 class SessionManageService:
     def __init__(self) -> None:
-        self.client = InferenceServerAPIClient()
+        self.client = InferenceServerAPIClient(api_token=get_api_token())
 
     def create_session(
         self, request: SessionCreationRequest
@@ -60,6 +61,13 @@ class SessionManageService:
 
         try:
             session_name = validate_session_name(response["session_name"])
+            # If session with same name exists, delete it first
+            existing_session = Session.objects.filter(session_name=session_name).first()
+            if existing_session:
+                Completions.objects.filter(session_name=session_name).delete()
+                existing_session.delete()
+                logger.info(f"Deleted existing session: {session_name}")
+
             session = Session.objects.create(
                 session_name=session_name,
                 db_connection_uri=mask_db_connection_uri(response.get("db_connection_uri"))
@@ -167,7 +175,7 @@ class SessionManageService:
 
 class CompletionService:
     def __init__(self) -> None:
-        self.client = InferenceServerAPIClient()
+        self.client = InferenceServerAPIClient(api_token=get_api_token())
 
     def completion(
         self, request: CompletionCreationRequest

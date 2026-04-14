@@ -53,7 +53,7 @@ class BaseLinePlotWorker(ChartPlotWorkerBase):
                 output = self.plot_tool.convert_image_to_base64(
                     self.plot_tool.convert_plot_to_image(fig=fig)
                 )
-                logger.info("Done base64 conversion")
+                logger.info("Plot image generated successfully")
             else:
                 output = None
 
@@ -74,6 +74,7 @@ class BaseLinePlotWorker(ChartPlotWorkerBase):
 
         except Exception as e:
             error_message = f"Error during plot generation: {str(e)}"
+            logger.error(error_message)
             return ChartPlotWorkerOutput(
                 question=question,
                 input_dataframe=convert_df_to_dict(input_dataframe),

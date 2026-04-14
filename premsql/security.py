@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import secrets
 from pathlib import Path
 from typing import Any, Iterable, Optional
 from urllib.parse import urlparse
@@ -29,6 +30,9 @@ DEFAULT_ALLOWED_ORIGINS = (
 )
 PREMSQL_API_TOKEN_HEADER = "X-PremSQL-API-Token"
 PREMSQL_API_TOKEN_ENV = "PREMSQL_API_TOKEN"
+
+# Auto-generated dev token (only used when PREMSQL_API_TOKEN not configured)
+_DEV_API_TOKEN: Optional[str] = None
 
 
 class SecurityValidationError(ValueError):
@@ -267,7 +271,35 @@ def redact_agent_output_payload(payload: Optional[dict[str, Any]]) -> Optional[d
 
 
 def get_api_token(explicit_token: Optional[str] = None) -> Optional[str]:
-    return explicit_token or os.environ.get(PREMSQL_API_TOKEN_ENV)
+    """
+    Get API token from explicit parameter, environment, or auto-generate for dev.
+
+    For production (DEBUG=false): PREMSQL_API_TOKEN must be configured
+    For development (DEBUG=true): Auto-generates a random token if not configured
+    """
+    token = explicit_token or os.environ.get(PREMSQL_API_TOKEN_ENV)
+    if token:
+        return token
+
+    # Check if in debug mode
+    debug_mode = os.environ.get("PREMSQL_DJANGO_DEBUG", "false").lower() == "true"
+
+    if not debug_mode:
+        # Production mode: Token must be configured
+        raise ValueError(
+            "PREMSQL_API_TOKEN must be configured for production. "
+            "Set PREMSQL_API_TOKEN environment variable or set PREMSQL_DJANGO_DEBUG=true for development."
+        )
+
+    # Development mode: Auto-generate dev token
+    global _DEV_API_TOKEN
+    if _DEV_API_TOKEN is None:
+        _DEV_API_TOKEN = f"dev-{secrets.token_hex(16)}"
+        logging.getLogger("premsql.security").warning(
+            f"Auto-generated dev API token: {_DEV_API_TOKEN} "
+            "(Set PREMSQL_API_TOKEN for production)"
+        )
+    return _DEV_API_TOKEN
 
 
 def build_auth_headers(

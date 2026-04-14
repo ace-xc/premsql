@@ -1,6 +1,8 @@
 import io
 from typing import Callable, Dict
 
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for server mode
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.axes import Axes

@@ -7,6 +7,15 @@ from pathlib import Path
 
 import click
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    env_file = Path(__file__).parent.parent / ".env"
+    if env_file.exists():
+        load_dotenv(env_file)
+except ImportError:
+    pass
+
 # PID file for tracking spawned processes
 PID_FILE = Path(user_cache_dir()) / "premsql" / "pids.json" if 'user_cache_dir' in dir() else Path.home() / ".premsql_pids.json"
 

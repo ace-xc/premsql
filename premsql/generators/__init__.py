@@ -6,6 +6,8 @@ __all__ = [
     "Text2SQLGeneratorOpenAI",
     "Text2SQLGeneratorMLX",
     "Text2SQLGeneratorOllama",
+    "Text2SQLGeneratorVLLM",
+    "Text2SQLGeneratorOpenAICompatible",
 ]
 
 
@@ -15,9 +17,11 @@ def __getattr__(name):
         "Text2SQLGeneratorPremAI": ("premsql.generators.premai", "Text2SQLGeneratorPremAI"),
         "Text2SQLGeneratorOpenAI": ("premsql.generators.openai", "Text2SQLGeneratorOpenAI"),
         "Text2SQLGeneratorMLX": ("premsql.generators.mlx", "Text2SQLGeneratorMLX"),
-        "Text2SQLGeneratorOllama": (
-            "premsql.generators.ollama_model",
-            "Text2SQLGeneratorOllama",
+        "Text2SQLGeneratorOllama": ("premsql.generators.ollama_model", "Text2SQLGeneratorOllama"),
+        "Text2SQLGeneratorVLLM": ("premsql.generators.vllm", "Text2SQLGeneratorVLLM"),
+        "Text2SQLGeneratorOpenAICompatible": (
+            "premsql.generators.openai_compatible",
+            "Text2SQLGeneratorOpenAICompatible",
         ),
     }
     if name not in mapping:

@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime
+import os
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -18,6 +19,9 @@ from premsql.security import (
 )
 
 logger = setup_console_logger("[FASTAPI-INFERENCE-SERVICE]")
+
+# Check if in debug mode
+DJANGO_DEBUG = os.environ.get("PREMSQL_DJANGO_DEBUG", "false").lower() == "true"
 
 
 class QuestionInput(BaseModel):
@@ -54,10 +58,21 @@ class AgentServer:
         self.agent = agent
         self.port = port
         self.url = url
+        # Always get a token (either from config or auto-generated dev token)
         self.api_token = get_api_token(api_token)
+        # Track if this is an auto-generated dev token
+        self._is_dev_token = api_token is None and not self._check_env_token()
         self.app = self.create_app()
 
+    def _check_env_token(self) -> bool:
+        """Check if token was set in environment"""
+        import os
+        return os.environ.get("PREMSQL_API_TOKEN") is not None
+
     def _authorize_request(self, request: Request) -> None:
+        # In debug mode, skip authentication
+        if DJANGO_DEBUG:
+            return
         if not self.api_token:
             return
         if request.headers.get(PREMSQL_API_TOKEN_HEADER) != self.api_token:
@@ -139,8 +154,8 @@ class AgentServer:
             }
 
         @app.get("/health")
-        async def health_check(request: Request):
-            self._authorize_request(request)
+        async def health_check_no_auth(request: Request):
+            # Health check doesn't require authentication
             return {"status_code": 200, "status": "healthy"}
 
         @app.get("/session_info", response_model=SessionInfoResponse)
@@ -175,6 +190,8 @@ class AgentServer:
             self._authorize_request(request)
             try:
                 self.agent.history.delete_table()
+                # Recreate the table for future queries
+                self.agent.history.create_table_if_not_exists()
                 return {"status_code": 200, "status": "success"}
             except Exception as exc:
                 logger.error(safe_error_message(exc, debug_mode=False))
@@ -189,4 +206,8 @@ class AgentServer:
         import uvicorn
 
         logger.info(f"Starting server on port {self.port}")
+        if self._is_dev_token:
+            logger.info(f"Using auto-generated dev token: {self.api_token}")
+        else:
+            logger.info(f"Using configured API token")
         uvicorn.run(self.app, host=self.url, port=int(self.port))
